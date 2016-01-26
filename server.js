@@ -6,18 +6,19 @@
 var bodyParser = require('body-parser')
   , connect = require('connect')
   , connectRoute = require('connect-route')
-  , errorHandler = require('errorhandler')
+  // , errorHandler = require('errorhandler')
   , fileStreamRotator = require('file-stream-rotator')
   , fs = require('fs')
   , morgan = require('morgan')
-  , nodeMailer = require('nodemailer')
+  // , nodeMailer = require('nodemailer')
   , path = require('path')
-  , sendmailTransport = require('nodemailer-sendmail-transport')
+  // , sendmailTransport = require('nodemailer-sendmail-transport')
 
 /**
  * Local modules.
  */
-var auth = require('./auth')
+var authMiddleware = require('./auth-middleware')
+  , errorMiddleware = require('./error-middleware')
   , views = require('./views')
 
 var app = connect()
@@ -62,7 +63,7 @@ app.use(bodyParser.json())
 /**
  * Authentication
  */
-app.use(auth())
+app.use(authMiddleware())
 
 /**
  * Routing.
@@ -74,41 +75,44 @@ app.use(connectRoute(views))
  * Error handling.
  */
 
-if (process.env.NODE_ENV === 'dev') {
-  var notifier = require('node-notifier')
-  // log everything to stdout
-  app.use(morgan('short'), {stream: process.stdout})
+app.use(errorMiddleware())
 
-  // must be 'used' after url routing otherwise none of the exceptions in a
-  // view reaches this 'next' middleware
-  app.use(errorHandler({log: function(err, str, req) {
-    var title = 'Error in ' + req.method + ' ' + req.url
 
-    notifier.notify(
-      { title: title
-      , message: str
-      , urgency: 'critical'
-      })
-  }}))
-} else {
-  app.use(errorHandler({log: function(err, str, req) {
-    var transporter = nodeMailer.createTransport(sendmailTransport({
-      path: '/usr/sbin/sendmail'
-    }))
-    transporter.sendMail(
-      { to: (process.env.ERROR_MAILTO || 'root@localhost')
-      , from: (process.env.ERROR_MAILFROM || 'root@localhost')
-      , subject: 'ERROR: ' + err.constructor.name + ' in ' + req.method + ' ' + req.url
-      , text: err.stack
-      // , html: err.stack.replace(/(?:\r\n|\r|\n)/g, '<br>')
-      },
-      function callback(err, info) {
-        if (err) {
-          console.error(err)
-        }
-      })
-  }}))
-}
+// if (process.env.NODE_ENV === 'dev') {
+//   var notifier = require('node-notifier')
+//   // log everything to stdout
+//   app.use(morgan('short'), {stream: process.stdout})
+
+//   // must be 'used' after url routing otherwise none of the exceptions in a
+//   // view reaches this 'next' middleware
+//   app.use(errorHandler({log: function(err, str, req) {
+//     var title = 'Error in ' + req.method + ' ' + req.url
+
+//     notifier.notify(
+//       { title: title
+//       , message: str
+//       , urgency: 'critical'
+//       })
+//   }}))
+// } else {
+//   app.use(errorHandler({log: function(err, str, req) {
+//     var transporter = nodeMailer.createTransport(sendmailTransport({
+//       path: '/usr/sbin/sendmail'
+//     }))
+//     transporter.sendMail(
+//       { to: (process.env.ERROR_MAILTO || 'root@localhost')
+//       , from: (process.env.ERROR_MAILFROM || 'root@localhost')
+//       , subject: 'ERROR: ' + err.constructor.name + ' in ' + req.method + ' ' + req.url
+//       , text: err.stack
+//       // , html: err.stack.replace(/(?:\r\n|\r|\n)/g, '<br>')
+//       },
+//       function callback(err, info) {
+//         if (err) {
+//           console.error(err)
+//         }
+//       })
+//   }}))
+// }
 
 /**
  * Server start.

@@ -5,17 +5,16 @@
   "license": "GNU GPL v3.0",
   "version": "0.0.1",
   "engines": {
-    "node": ">= 0.10.29"
+    "node": ">= 4.2.6"
   },
   "dependencies": {
-    "bluebird": "^3.1.1",
+    "bluebird": "^3.1.5",
     "body-parser": "^1.14.2",
-    "connect": "^3.4.0",
+    "connect": "^3.4.1",
     "connect-route": "^0.1.5",
     "crc": "^3.4.0",
-    "errorhandler": "^1.4.2",
+    "errorhandler": "^1.4.3",
     "file-stream-rotator": "0.0.6",
-    "fs-access": "^1.0.0",
     "line-reader": "^0.3.0",
     "morgan": "^1.6.1",
     "nodemailer": "^2.0.0",
@@ -23,7 +22,5 @@
     "unorm": "^1.4.1",
     "walk": "^2.3.9"
   },
-  "devDependencies": {
-    "node-notifier": "^4.4.0"
-  }
+  "devDependencies": {}
 }

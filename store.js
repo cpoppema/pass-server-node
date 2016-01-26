@@ -2,140 +2,192 @@
 
 var crc = require('crc')
   , fs = require('fs')
-  , fsAccess = require('fs-access')
+  , lineReader = require('line-reader')
   , path = require('path')
+  , Promise = require('bluebird')
   , walk = require('walk')
   , unorm = require('unorm')
 
 
-module.exports = (function() {
-  var passwordDir = process.env.PASSWORD_STORE_DIR
-
-  /**
-   * Build an ascii armored pgp message.
-   */
-  function buildPgpMessage(data) {
-    var pgpMessage = ''
-    pgpMessage += '-----BEGIN PGP MESSAGE-----\n\n'
-    pgpMessage += data.toString('base64') + '\n'
-    pgpMessage += '=' + getChecksum(data) + '\n'
-    pgpMessage += '-----END PGP MESSAGE-----'
-
-    return pgpMessage
+/**
+ * Singleton Store.
+ */
+var Store = function Store() {
+  if (Store.prototype.store) {
+    return Store.prototype.store
   }
 
-  /**
-   * Calculate the checksum for given data.
-   */
-  function getChecksum(data) {
-    // build ascii armored pgp message
-    var hash = crc.crc24(data)
-    return new Buffer('' +
-        String.fromCharCode(hash >> 16) +
-        String.fromCharCode((hash >> 8) & 0xFF) +
-        String.fromCharCode(hash & 0xFF),
-      'ascii').toString('base64')
+  Store.prototype.store = this
+  Store.prototype.store.init()
+}
+
+
+/**
+ * Initialize the store: perform some sanity checks.
+ */
+Store.prototype.init = function init() {
+  // make sure PASSWORD_STORE_DIR points to a directory
+  this.passwordDir = process.env.PASSWORD_STORE_DIR
+  if (!this.passwordDir) {
+    throw new Error('PASSWORD_STORE_DIR is not specified.')
   }
 
-  /**
-   * Get the file data from a secret's file (.gpg).
-   */
-  function getGpg(relPath, username, done) {
-    var secretPath = path.resolve(path.normalize(path.join(passwordDir, relPath, username + '.gpg')))
+  var stats = fs.lstatSync(this.passwordDir)
+  if (!stats.isDirectory()) {
+    throw new Error("'" + this.passwordDir + "' is not a directory.")
+  }
 
-    // return 400 bad request if secretPath ends up outside of passwordDir
-    if (path.relative(passwordDir, secretPath).substr(0, 2) === '..') {
-      done({errno: 400, message: 'Invalid secret requested.'})
-    } else {
-      fs.stat(secretPath, function(err, fileStats) {
-        if (err) {
-          if (err.errno === 34 || err.errno === -2) {
-            // return 503 service unavailable if there is no file .gpg-id
-            done({errno: 503, message: 'Key file (.gpg-id) does not exist.'})
-          } else {
-            // return 500 server errir if *something* went wrong
-            done({errno: 500, message: 'Unknown server error.'})
-          }
-        } else {
-          if (!fileStats.isFile()) {
-            // return 400 bad request if secretPath is not a secret after all
-            done({errno: 400, message: 'Invalid secret requested.'})
-          } else {
-            fsAccess(secretPath, function(err) {
-              if (err) {
-                // return 503 service unavailable if secret is unreadable
-                done({errno: 503, message: 'Secret file is not readable.'})
-              } else {
-                fs.readFile(secretPath, function(err, data) {
-                  if (err) {
-                    // return 500 server errir if *something* went wrong
-                    done({errno: 500, message: 'Unknown server error.'})
-                  } else {
-                    done(null, data)
-                  }
-                })
-              }
-            })
-          }
-        }
-      })
+  // make sure PASSWORD_STORE_DIR is accessible
+  fs.accessSync(this.passwordDir, fs.R_OK | fs.X_OK)
+
+  // make sure PASSWORD_STORE_DIR/.gpg-id is accessible
+  this.keyFile = path.join(this.passwordDir, '.gpg-id')
+  fs.accessSync(this.keyFile, fs.R_OK)
+}
+
+/**
+ * Build an ascii armored pgp message.
+ */
+Store.prototype.buildPgpMessage = function buildPgpMessage(data) {
+  var pgpMessage = ''
+  pgpMessage += '-----BEGIN PGP MESSAGE-----\n\n'
+  pgpMessage += data.toString('base64') + '\n'
+  pgpMessage += '=' + this.getChecksum(data) + '\n'
+  pgpMessage += '-----END PGP MESSAGE-----'
+
+  return pgpMessage
+}
+
+/**
+ * Calculate the checksum for given data.
+ */
+Store.prototype.getChecksum = function getChecksum(data) {
+  var hash = crc.crc24(data)
+  return new Buffer('' +
+      String.fromCharCode(hash >> 16) +
+      String.fromCharCode((hash >> 8) & 0xFF) +
+      String.fromCharCode(hash & 0xFF),
+    'ascii').toString('base64')
+}
+
+/**
+ * Get the file data from a secret's file (.gpg).
+ */
+Store.prototype.getGpg = function getGpg(relPath, username, done) {
+  var secretFilename = username + '.gpg'
+  var secretRelPath = path.join(relPath, secretFilename)
+  var secretPath = path.resolve(path.join(this.passwordDir, secretRelPath))
+
+  try {
+    var stats = fs.lstatSync(secretPath)
+    if (path.relative(this.passwordDir, secretPath).substr(0, 2) === '..' ||
+        !stats.isFile()) {
+      var e = new Error('No such secret exists.')
+      e.status = 400
+      throw e
     }
+  } catch (e) {
+    var e = new Error('No such secret exists.')
+    e.status = 400
+    throw e
   }
 
-  /**
-   * Get a list of secrets currently on disk.
-   */
-  function getList(done) {
-    var secrets = []
+  // make sure secretPath is accessible
+  try {
+    fs.accessSync(secretPath, fs.R_OK)
+  } catch (e) {
+    e.status = 503
+    throw e
+  }
 
-    var walker = walk.walk(passwordDir, {
-      followLinks: false
-    })
+  try {
+    var data = fs.readFileSync(secretPath)
+    try {
+      done(null, data)
+    } catch (e) {
+      e.status = 500
+      done(e)
+    }
+  } catch (e) {
+    e.status = 500
+    done(e)
+  }
+}
 
-    walker.on('file', function(root, fileStats, next) {
-      if (root === passwordDir) {
-        // skip everything in the root directory
-        next()
-      } else {
-        var domain = path.basename(root)
-        var extension = path.extname(fileStats.name)
-        var username = path.basename(fileStats.name, extension)
-        var relPath = path.relative(passwordDir, root)
+/**
+ * Get a list of secrets currently on disk.
+ */
+Store.prototype.getList = function getList(done) {
+  var passwordDir = this.passwordDir
 
-        // skip everything without a domain
-        if (domain) {
-          // add file to secrets
-          secrets.push(
-            { domain: domain
-            , path: relPath
-            , username: username
-            , username_normalized: unorm.nfkd(username)
-            })
-        }
+  var secrets = []
 
-        next()
-      }
-    })
+  var walker = walk.walk(passwordDir, {
+    followLinks: false
+  })
 
-    walker.on('errors', function(root, nodeStatsArray, next) {
-      console.log('error', nodeStatsArray)
+  walker.on('file', function onFile(root, fileStats, next) {
+    if (root === passwordDir) {
+      // skip everything in the root directory
       next()
+    } else {
+      var domain = path.basename(root)
+      var extension = path.extname(fileStats.name)
+      var username = path.basename(fileStats.name, extension)
+      var relPath = path.relative(passwordDir, root)
+
+      // skip everything without a domain
+      if (domain) {
+        // add file to secrets
+        secrets.push(
+          { domain: domain
+          , path: relPath
+          , username: username
+          , username_normalized: unorm.nfkd(username)
+          })
+      }
+
+      next()
+    }
+  })
+
+  walker.on('errors', function onError(root, nodeStatsArray, next) {
+    console.log('error', nodeStatsArray)
+    next()
+  })
+
+  walker.on('end', function onFinished() {
+    // sort case insensitive and accent insensitive
+    secrets = secrets.sort(function compareSecret(secret1, secret2) {
+      return (secret1.domain.localeCompare(secret2.domain) ||
+              unorm.nfkd(secret1.username)
+                .localeCompare(unorm.nfkd(secret2.username)))
     })
 
-    walker.on('end', function() {
-      // sort case insensitive and accent insensitive
-      secrets = secrets.sort(function(secret1, secret2) {
-        return (secret1.domain.localeCompare(secret2.domain) ||
-                unorm.nfkd(secret1.username).localeCompare(unorm.nfkd(secret2.username)))
-      })
+    done(secrets)
+  })
+}
 
-      done(secrets)
+Store.prototype.validateKey = function validateKey(longKeyId, done) {
+  if (longKeyId.length != 16) {
+    var e = new Error('Please provide a proper keyId.')
+    e.status = 400
+    throw e
+  } else {
+    // try both the long and short key id
+    var shortKeyId = longKeyId.substr(-8)
+
+    var isAuthenticated = false
+    var eachLine = Promise.promisify(lineReader.eachLine)
+    eachLine(this.keyFile, function handleLine(line) {
+      isAuthenticated = (line === longKeyId || line === shortKeyId)
+      return !isAuthenticated
+    }).then(function onFulfilled() {
+      done(isAuthenticated)
+    }, function onRejected(reason) {
+      throw new Error(reason)
     })
   }
+}
 
-  return { buildPgpMessage: buildPgpMessage
-         , getChecksum: getChecksum
-         , getGpg: getGpg
-         , getList: getList
-         }
-})()
+module.exports = new Store()
