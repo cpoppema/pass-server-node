@@ -1,6 +1,5 @@
 env:
   node: true
-  browser: true
 
 # enable ECMAScript features
 ecmaFeatures:
@@ -32,7 +31,7 @@ rules:
   quote-props: [2, "as-needed", { "keywords": true }]
   ## disallow unreachable code
   no-unreachable: 2
-  ## require valid typeof compared string like typeof foo === 'strnig'
+  ## require valid typeof compared string like typeof foo === 'string'
   valid-typeof: 2
 
   # Best Practices
@@ -48,8 +47,10 @@ rules:
   indent: [2, 2]
   ## add space after comma
   comma-spacing: 2
+  ## comma first
+  comma-style: [2, "first"]
   ## put semi-colon
-  semi: 2
+  semi: [2, "never"]
   ## require spaces operator like var sum = 1 + 1;
   space-infix-ops: 2
   ## require spaces return, throw, case
@@ -58,10 +59,12 @@ rules:
   space-before-function-paren: [2, "never"]
   ## require space before blocks, eg 'function() {'
   space-before-blocks: [2, "always"]
+  ## require functions to have names
+  func-names: 2
   ## require parens for Constructor
   new-parens: 2
-  ## max 120 length
-  max-len: [2, 120, 2]
+  ## max 80 length
+  max-len: [2, 80, 2]
   ## max 2 consecutive empty lines
   no-multiple-empty-lines: [2, {max: 2}]
   ## require newline at end of files
@@ -111,4 +114,3 @@ globals:
   COUNTER_NET_SERVER_CONNECTION        : false
   escape                               : false
   unescape                             : false
-  chrome                               : true
