@@ -1,8 +1,8 @@
 {
-  "name": "pass-browser",
-  "author": "Cornelis Poppema",
-  "description": "Browser (chrome) extension and node server for read-only access to a pass-maintained password file.",
+  "name": "pass-server-node",
   "license": "GNU GPL v3.0",
+  "description": "Browser (chrome) extension for read-only access to a pass-maintained password file, hosted elsewhere.",
+  "author": "Cornelis Poppema",
   "version": "0.0.1",
   "engines": {
     "node": ">= 4.2.6"
