@@ -1,9 +1,16 @@
 'use strict'
 
-var crc = require('crc')
-  , fs = require('fs')
-  , lineReader = require('line-reader')
+/**
+ * Node modules.
+ */
+var fs = require('fs')
   , path = require('path')
+
+/**
+ * NPM modules.
+ */
+var crc = require('crc')
+  , lineReader = require('line-reader')
   , Promise = require('bluebird')
   , walk = require('walk')
   , unorm = require('unorm')

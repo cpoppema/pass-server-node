@@ -3,15 +3,19 @@
 /**
  * Node modules.
  */
+var fs = require('fs')
+  , path = require('path')
+
+/**
+ * NPM modules.
+ */
 var bodyParser = require('body-parser')
   , connect = require('connect')
   , connectRoute = require('connect-route')
   // , errorHandler = require('errorhandler')
   , fileStreamRotator = require('file-stream-rotator')
-  , fs = require('fs')
   , morgan = require('morgan')
   // , nodeMailer = require('nodemailer')
-  , path = require('path')
   // , sendmailTransport = require('nodemailer-sendmail-transport')
 
 /**
@@ -20,6 +24,7 @@ var bodyParser = require('body-parser')
 var authMiddleware = require('./auth-middleware')
   , errorMiddleware = require('./error-middleware')
   , views = require('./views')
+
 
 var app = connect()
 
@@ -118,4 +123,4 @@ app.use(errorMiddleware())
  * Server start.
  */
 
-app.listen(process.env.PORT || 8080)
+app.listen(process.env.npm_package_config_port)

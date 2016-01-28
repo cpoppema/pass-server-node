@@ -1,5 +1,8 @@
 'use strict'
 
+/**
+ * Local modules.
+ */
 var store = require('./store')
 
 

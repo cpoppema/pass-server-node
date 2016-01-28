@@ -22,5 +22,8 @@
     "unorm": "^1.4.1",
     "walk": "^2.3.9"
   },
-  "devDependencies": {}
+  "devDependencies": {},
+  "config" : {
+    "port" : "8080"
+  }
 }
