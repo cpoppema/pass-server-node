@@ -11,7 +11,7 @@ module.exports = function routes(router) {
 
     store.getList(function getList(secrets) {
       res.writeHead(200, {'Content-Type': 'application/json'})
-      res.end(JSON.stringify(secrets, null, 2))
+      res.end(JSON.stringify({response: secrets}, null, 2))
     })
   })
 
@@ -29,8 +29,8 @@ module.exports = function routes(router) {
     store.getGpg(relPath, username, function getGpg(err, data) {
       if (!err) {
         var pgpMessage = store.buildPgpMessage(data)
-        res.writeHead(200, {'Content-Type': 'text/plain'})
-        res.end(pgpMessage)
+        res.writeHead(200, {'Content-Type': 'application/json'})
+        res.end(JSON.stringify({response: pgpMessage}, null, 2))
       } else {
         next(err)
       }
