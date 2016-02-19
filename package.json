@@ -23,7 +23,11 @@
     "walk": "^2.3.9"
   },
   "devDependencies": {},
-  "config" : {
-    "port" : "8080"
+  "config": {
+    "port": "3000",
+    "password_store_dir": "~/.password-store"
+  },
+  "scripts": {
+    "start": "node ./server.js"
   }
 }

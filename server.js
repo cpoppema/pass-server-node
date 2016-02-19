@@ -123,4 +123,6 @@ app.use(errorMiddleware())
  * Server start.
  */
 
-app.listen(process.env.npm_package_config_port)
+app.listen(process.env.npm_config_port ||
+           process.env.PORT ||
+           process.env.npm_package_config_port)

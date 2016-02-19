@@ -33,10 +33,18 @@ var Store = function Store() {
  * Initialize the store: perform some sanity checks.
  */
 Store.prototype.init = function init() {
-  // make sure PASSWORD_STORE_DIR points to a directory
-  this.passwordDir = process.env.PASSWORD_STORE_DIR
+  // make sure password_store_dir points to a directory
+  this.passwordDir = process.env.npm_config_password_store_dir ||
+    process.env.PASSWORD_STORE_DIR ||
+    process.env.npm_package_config_password_store_dir
+
   if (!this.passwordDir) {
-    throw new Error('PASSWORD_STORE_DIR is not specified.')
+    throw new Error('No password store directory specified.')
+  }
+
+  if (this.passwordDir.split(path.sep)[0] == '~') {
+    this.passwordDir = path.join(process.env.HOME,
+      this.passwordDir.split(path.sep).slice(1).join(path.sep))
   }
 
   var stats = fs.lstatSync(this.passwordDir)
