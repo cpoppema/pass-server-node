@@ -13,12 +13,7 @@
     "connect": "^3.4.1",
     "connect-route": "^0.1.5",
     "crc": "^3.4.0",
-    "errorhandler": "^1.4.3",
-    "file-stream-rotator": "0.0.6",
     "line-reader": "^0.3.0",
-    "morgan": "^1.6.1",
-    "nodemailer": "^2.0.0",
-    "nodemailer-sendmail-transport": "^1.0.0",
     "unorm": "^1.4.1",
     "walk": "^2.3.9"
   },

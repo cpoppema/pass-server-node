@@ -166,11 +166,6 @@ Store.prototype.getList = function getList(done) {
     }
   })
 
-  walker.on('errors', function onError(root, nodeStatsArray, next) {
-    console.log('error', nodeStatsArray)
-    next()
-  })
-
   walker.on('end', function onFinished() {
     // sort case insensitive and accent insensitive
     secrets = secrets.sort(function compareSecret(secret1, secret2) {
