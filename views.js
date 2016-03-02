@@ -1,6 +1,11 @@
 'use strict'
 
 /**
+ * NPM modules.
+ */
+var openpgp = require('openpgp')
+
+/**
  * Local modules.
  */
 var store = require('./store')
@@ -11,7 +16,19 @@ module.exports = function routes(router) {
 
     store.getList(function getList(secrets) {
       res.writeHead(200, {'Content-Type': 'application/json'})
-      res.end(JSON.stringify({response: secrets}, null, 2))
+
+      var data = JSON.stringify(secrets)
+      var publicKey = req.body.publicKey
+
+      openpgp.encrypt(
+        { data: data
+          , publicKeys: openpgp.key.readArmored(publicKey).keys
+        })
+        .then(function sendPgpResponse(armored) {
+          var pgpMessage = armored.data
+          res.writeHead(200, {'Content-Type': 'application/json'})
+          res.end(JSON.stringify({response: pgpMessage}, null, 2))
+        })
     })
   })
 
