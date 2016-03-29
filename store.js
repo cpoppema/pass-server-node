@@ -158,7 +158,7 @@ Store.prototype.getList = function getList(done) {
           { domain: domain
           , path: relPath
           , username: username
-          , username_normalized: unorm.nfkd(username)
+          , username_normalized: unorm.nfkd(username).replace(/\W/g, '')
           })
       }
 
