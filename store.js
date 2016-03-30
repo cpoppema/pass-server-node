@@ -159,6 +159,7 @@ Store.prototype.getList = function getList(done) {
           , path: relPath
           , username: username
           , username_normalized: unorm.nfkd(username)
+                                   .replace(/[^\u0000-\u00FF]/g, '')
           })
       }
 
