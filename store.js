@@ -185,13 +185,24 @@ Store.prototype.validateKey = function validateKey(longKeyId, done) {
     e.status = 400
     throw e
   } else {
-    // try both the long and short key id
+    // validate variations also
     var shortKeyId = longKeyId.substr(-8)
+    var longKeyId0x = '0x' + longKeyId
+    var shortKeyId0x = '0x' + shortKeyId
+    var longKeyId0 = '0' + longKeyId
+    var shortKeyId0 = '0' + shortKeyId
+    var keys = [ longKeyId
+               , shortKeyId
+               , longKeyId0x
+               , shortKeyId0x
+               , longKeyId0
+               , shortKeyId0
+               ]
 
     var isAuthenticated = false
     var eachLine = Promise.promisify(lineReader.eachLine)
     eachLine(this.keyFile, function handleLine(line) {
-      isAuthenticated = (line === longKeyId || line === shortKeyId)
+      isAuthenticated = (keys.indexOf(line) !== -1)
       return !isAuthenticated
     }).then(function onFulfilled() {
       done(isAuthenticated)

@@ -51,7 +51,9 @@ Key IDs
 Pass server supports the following key formats:
 
 - 8-character key ID
+- 8-character key ID, prefixed with either ``0x`` or ``0``
 - 16-character key ID
+- 16-character key ID, prefixed with either ``0x`` or ``0``
 
 Request endpoints
 -----------------
