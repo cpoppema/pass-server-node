@@ -15,6 +15,11 @@ var crc = require('crc')
   , walk = require('walk')
   , unorm = require('unorm')
 
+/**
+ * Local modules.
+ */
+var logger = require('./logger')
+
 
 /**
  * Singleton Store.
@@ -33,7 +38,7 @@ var Store = function Store() {
  * Initialize the store: perform some sanity checks.
  */
 Store.prototype.init = function init() {
-  // make sure password_store_dir points to a directory
+  // make sure passwordDir points to a directory
   this.passwordDir = process.env.npm_config_password_store_dir ||
     process.env.PASSWORD_STORE_DIR ||
     process.env.npm_package_config_password_store_dir
@@ -42,9 +47,14 @@ Store.prototype.init = function init() {
     throw new Error('No password store directory specified.')
   }
 
+  // expand tilde to $HOME
   if (this.passwordDir.split(path.sep)[0] == '~') {
     this.passwordDir = path.join(process.env.HOME,
       this.passwordDir.split(path.sep).slice(1).join(path.sep))
+  }
+
+  if (!path.isAbsolute(this.passwordDir)) {
+    this.passwordDir = path.resolve(this.passwordDir)
   }
 
   var stats = fs.lstatSync(this.passwordDir)
@@ -52,12 +62,19 @@ Store.prototype.init = function init() {
     throw new Error("'" + this.passwordDir + "' is not a directory.")
   }
 
-  // make sure PASSWORD_STORE_DIR is accessible
+  // make sure passwordDir is accessible
   fs.accessSync(this.passwordDir, fs.R_OK | fs.X_OK)
 
-  // make sure PASSWORD_STORE_DIR/.gpg-id is accessible
+  // make sure passwordDir/.gpg-id is accessible
   this.keyFile = path.join(this.passwordDir, '.gpg-id')
   fs.accessSync(this.keyFile, fs.R_OK)
+
+  logger.info('Reading from "' + this.passwordDir + '".')
+
+  // log current available keys
+  var data = fs.readFileSync(this.keyFile, 'ascii')
+  var keyIds = data.trim().split('\n')
+  logger.info('Store keys: ' + keyIds.join(', ') + '.')
 }
 
 /**
@@ -93,39 +110,59 @@ Store.prototype.getGpg = function getGpg(relPath, username, done) {
   var secretRelPath = path.join(relPath, secretFilename)
   var secretPath = path.resolve(path.join(this.passwordDir, secretRelPath))
 
-  try {
-    var stats = fs.lstatSync(secretPath)
-    if (path.relative(this.passwordDir, secretPath).substr(0, 2) === '..' ||
-        !stats.isFile()) {
-      var e = new Error('No such secret exists.')
-      e.status = 400
-      throw e
-    }
-  } catch (e) {
+  if (path.relative(this.passwordDir, secretPath).substr(0, 2) === '..') {
+    logger.debug('Requested secret points to a file located outside the ' +
+                 'password store.')
+
     var e = new Error('No such secret exists.')
     e.status = 400
     throw e
   }
 
-  // make sure secretPath is accessible
+  if (!fs.existsSync(secretPath)) {
+    logger.debug('Requested secret points to a file that does not exist: "' +
+                 secretPath + '".')
+
+    var e = new Error('No such secret exists.')
+    e.status = 400
+    throw e
+  }
+
+  var stats = fs.lstatSync(secretPath)
+  if (!stats.isFile()) {
+    logger.debug('Requested secret points to a directory: "' +
+                 secretPath + '".')
+
+    var e = new Error('No such secret exists.')
+    e.status = 400
+    throw e
+  }
+
+  // make sure secretPath can be read
   try {
     fs.accessSync(secretPath, fs.R_OK)
-  } catch (e) {
-    e.status = 503
-    throw e
+  } catch (ex) {
+    logger.error('Requested secret could be read: "' + secretPath + '".')
+
+    ex.status = 503
+    throw ex
   }
 
   try {
     var data = fs.readFileSync(secretPath)
     try {
       done(null, data)
-    } catch (e) {
-      e.status = 500
-      done(e)
+    } catch (ex) {
+      logger.error('Requested secret could be read: "' + secretPath + '".')
+
+      ex.status = 500
+      done(ex)
     }
-  } catch (e) {
-    e.status = 500
-    done(e)
+  } catch (ex) {
+    logger.error('Requested secret could be read: "' + secretPath + '".')
+
+    ex.status = 500
+    done(ex)
   }
 }
 
@@ -141,9 +178,13 @@ Store.prototype.getList = function getList(done) {
     followLinks: false
   })
 
+  logger.debug('Building list of secrets.')
+
   walker.on('file', function onFile(root, fileStats, next) {
     if (root === passwordDir) {
       // skip everything in the root directory
+      logger.debug('Skipping from "./": "' + fileStats.name + '".')
+
       next()
     } else {
       var domain = path.basename(root)
@@ -151,8 +192,10 @@ Store.prototype.getList = function getList(done) {
       var username = path.basename(fileStats.name, extension)
       var relPath = path.relative(passwordDir, root)
 
-      // skip everything without a domain
-      if (domain) {
+      if (extension == '.gpg') {
+        logger.debug('Add from "./' + relPath + '": "' + domain + '/' +
+                     username + '".')
+
         // add file to secrets
         secrets.push(
           { domain: domain
@@ -161,6 +204,9 @@ Store.prototype.getList = function getList(done) {
           , username_normalized: unorm.nfkd(username)
                                    .replace(/[^\u0000-\u00FF]/g, '')
           })
+      } else {
+        logger.debug('Skip from "./' + relPath + '": "' +
+                     fileStats.name + '".')
       }
 
       next()
@@ -171,8 +217,8 @@ Store.prototype.getList = function getList(done) {
     // sort case insensitive and accent insensitive
     secrets = secrets.sort(function compareSecret(secret1, secret2) {
       return (secret1.domain.localeCompare(secret2.domain) ||
-              unorm.nfkd(secret1.username)
-                .localeCompare(unorm.nfkd(secret2.username)))
+              secret1.username_normalized
+                .localeCompare(secret2.username_normalized))
     })
 
     done(secrets)
@@ -186,23 +232,30 @@ Store.prototype.validateKey = function validateKey(longKeyId, done) {
     throw e
   } else {
     // validate variations also
-    var shortKeyId = longKeyId.substr(-8)
-    var longKeyId0x = '0x' + longKeyId
-    var shortKeyId0x = '0x' + shortKeyId
     var longKeyId0 = '0' + longKeyId
+    var longKeyId0x = '0x' + longKeyId
+    var shortKeyId = longKeyId.substr(-8)
     var shortKeyId0 = '0' + shortKeyId
+    var shortKeyId0x = '0x' + shortKeyId
     var keys = [ longKeyId
-               , shortKeyId
-               , longKeyId0x
-               , shortKeyId0x
                , longKeyId0
+               , longKeyId0x
+               , shortKeyId
                , shortKeyId0
+               , shortKeyId0x
                ]
+
+    logger.debug('Validating key from request and all its variations: "' +
+                 keys.slice(1).join(', ') + '".')
 
     var isAuthenticated = false
     var eachLine = Promise.promisify(lineReader.eachLine)
     eachLine(this.keyFile, function handleLine(line) {
       isAuthenticated = (keys.indexOf(line) !== -1)
+
+      logger.debug('Key "' + line + '" ' +
+                   (isAuthenticated ? 'is a match' : 'is not a match'))
+
       return !isAuthenticated
     }).then(function onFulfilled() {
       done(isAuthenticated)

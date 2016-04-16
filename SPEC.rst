@@ -139,8 +139,8 @@ The properties for the file ``ninapeña.gpg`` are therefore determined as::
     }
 
 While searching in ``PASSWORD_STORE_DIR`` certain secrets are excluded: those
-that are not placed inside a directory that is formatted like a domain.
-I.e. there could be a hundred .gpg-files inside the directory
+that are not placed inside a directory (since the directory name is used as the
+domain). I.e. there could be a hundred .gpg-files inside the directory
 ``~/.password-store/``, but none would be exposed by a pass server. Other files,
 like ``contains-very-secret-notes.txt`` are not recognized as a .gpg-file and
 are ignored in building the list of secrets.

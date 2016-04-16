@@ -43,6 +43,12 @@ npm start
 
 The variables are also read in this order. If you do not change them, the config in package.json will be used. If you want to reset the values set with `npm config`, remove those from `~/.npmrc` or wherever your npmrc exists.
 
+**Debugging**
+
+If something is not working like you think it should, you can enable more verbose logging by changing variables ``LOG_LEVEL`` and ``LOG_DIR``. ``LOG_LEVEL`` controls how verbose the server logs messages, there are four levels: ``debug``, ``info``, ``warn``, ``error`` (default). ``LOG_DIR`` controls in what directory these log files are created: "server.log" and "error.log" (default directory: "./log"). If you don't want any file output, you can set ``LOG_DIR`` to a blank value (empty string). Logfiles are limited to 1 MB and are rotated with a maximum of 1 file besides the current one.
+
+Both these variables can be set the same way as shown above with the port and password store directory.
+
 **Notes**
 
 This application only binds to localhost. You should always use HTTPS to serve this application. Please use any web server (like Nginx) configured to serve this through an HTTPS-enabled reverse proxy.

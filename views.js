@@ -8,7 +8,8 @@ var openpgp = require('openpgp')
 /**
  * Local modules.
  */
-var store = require('./store')
+var logger = require('./logger')
+  , store = require('./store')
 
 
 module.exports = function routes(router) {
@@ -38,6 +39,13 @@ module.exports = function routes(router) {
     var username = req.body.username
     if (typeof relPath === typeof void 0 ||
         typeof username === typeof void 0) {
+
+      if (typeof relPath === typeof void 0) {
+        logger.debug('Request body does not have a path')
+      } else if (typeof username === typeof void 0) {
+        logger.debug('Request body does not have a username')
+      }
+
       var e = new Error('Invalid secret requested.')
       e.status = 400
       throw e

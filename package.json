@@ -13,15 +13,19 @@
     "connect": "^3.4.1",
     "connect-route": "^0.1.5",
     "crc": "^3.4.0",
+    "dateformat": "^1.0.12",
     "line-reader": "^0.3.0",
     "openpgp": "^2.1.0",
     "unorm": "^1.4.1",
-    "walk": "^2.3.9"
+    "walk": "^2.3.9",
+    "winston": "^2.2.0"
   },
   "devDependencies": {},
   "config": {
     "port": "3000",
-    "password_store_dir": "~/.password-store"
+    "password_store_dir": "~/.password-store",
+    "log_level": "error",
+    "log_dir": "./log"
   },
   "scripts": {
     "start": "node ./server.js"
