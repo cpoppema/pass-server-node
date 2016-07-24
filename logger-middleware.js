@@ -28,10 +28,11 @@ module.exports = function LoggerMiddleware() {
       }
 
       // useful information when building against this server
-      if (req.headers['content-type'] !== 'application/json') {
-        logger.debug('Request with incorrect content-type: "' +
-                     req.headers['content-type'] + '" is not ' +
-                     '"application/json".')
+      var contentType = req.headers['content-type']
+      if (!contentType || (contentType.split(';')
+                           .indexOf('application/json') === -1)) {
+        logger.debug('Request with incorrect content-type: "' + contentType +
+                     '" does not contain "application/json".')
       }
 
       end.apply(res, arguments)
