@@ -8,7 +8,7 @@ If you have not installed a compatible client yet, you can just install one:
 
 * [extension](https://github.com/cpoppema/pass-browser-chrome#how-to-install) for chrome and chromium
 * [add-on](https://github.com/cpoppema/pass-browser-firefox#how-to-install) for firefox
-* [app](https://github.com/cpoppema/pass-mobile-android#how-to-install) for android (coming soon)
+* [app](https://github.com/cpoppema/pass-mobile-android#how-to-install) for android
 
 For this setup to work, secrets must be stored in the format `url/username`, for example: `github.com/cpoppema`. You can still categorize secrets since the server assumes the filename is the username and the directory the secrets exists in is the url. Multiline secrets are not an issue since the browser plugin only uses the first line of your secret as the password.
 
